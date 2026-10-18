@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrajetBus Oujda - Transport Urbain en Temps Réel</title>
+    
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <style>
+        :root {
+            --primary: #065f46;
+            --primary-light: #059669;
+            --primary-bg: #ecfdf5;
+            --secondary: #10b981;
+            --accent: #d1fae5;
+            --dark: #0f172a;
+            --light-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 12px;
+        }
+
+        body.dark-mode {
+            --primary-bg: #064e3b;
+            --dark: #f8fafc;
+            --light-bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--light-bg);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Header & Navigation */
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.8rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .logo i {
+            font-size: 1.8rem;
+            color: #34d399;
+        }
+
+        .logo span strong {
+            color: #a7f3d0;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        nav a:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-toggle {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+
+        .btn-toggle:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Hero Banner */
+        .hero {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 30px 5%;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Main Container Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            padding: 20px 5%;
+            flex: 1;
+        }
+
+        @media (max-width: 992px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Map Section */
+        .map-wrapper {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-header {
+            padding: 15px 20px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .map-header h2 {
+            font-size: 1.2rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #map {
+            height: 520px;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Custom Leaflet Bus Marker */
+        .bus-marker-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            border: 2px solid white;
+        }
+
+        /* Sidebar Fleet Control */
+        .fleet-sidebar {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            max-height: 600px;
+        }
+
+        .sidebar-title {
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .bus-search-box {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .bus-search-box input {
+            width: 100%;
+            padding: 10px 35px 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--light-bg);
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .bus-search-box i {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .bus-list {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 5px;
+        }
+
+        .bus-item {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--light-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .bus-item:hover {
+            border-color: var(--primary-light);
+            transform: translateX(3px);
+        }
+
+        .bus-info-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bus-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .bus-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bus-line-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .bus-route-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .bus-status {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-moving {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        /* Widgets Section */
+        .widgets-section {
+            padding: 20px 5%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .widget-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+        }
+
+        .widget-card h3 {
+            color: var(--primary);
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+            color: var(--text-muted);
+        }
+
+        .form-group select, .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--light-bg);
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .btn-action {
+            width: 100%;
+            background: var(--primary-light);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-action:hover {
+            background: var(--primary);
+        }
+
+        .eta-result {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            background: var(--primary-bg);
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 20px 5%;
+            margin-top: 40px;
+            font-size: 0.9rem;
+        }
+
+        footer strong {
+            color: #a7f3d0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <header>
+        <div class="logo">
+            <i class="fas fa-bus-alt"></i>
+            <span>Trajet<strong>Bus</strong> Oujda</span>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#map-section" id="nav-carte"><i class="fas fa-map-marked-alt"></i> Carte</a></li>
+                <li><a href="#lines-section" id="nav-lignes"><i class="fas fa-route"></i> Lignes</a></li>
+                <li><a href="#eta-section" id="nav-passages"><i class="fas fa-clock"></i> Passages</a></li>
+            </ul>
+        </nav>
+        <div class="header-actions">
+            <button class="btn-toggle" onclick="toggleLanguage()">
+                <i class="fas fa-globe"></i> <span id="lang-text">العربية</span>
+            </button>
+            <button class="btn-toggle" onclick="toggleDarkMode()">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Hero Banner -->
+    <section class="hero">
+        <h1 id="hero-title">Réseau de Transport Urbain d'Oujda</h1>
+        <p id="hero-desc">Suivez en temps réel les 15 lignes de bus circulant dans la ville d'Oujda avec leurs tracés officiels.</p>
+    </section>
+
+    <!-- Main Live Map & Sidebar -->
+    <div class="main-container" id="map-section">
+        <!-- Leaflet Map Container -->
+        <div class="map-wrapper">
+            <div class="map-header">
+                <h2><i class="fas fa-satellite-dish"></i> <span id="map-title">Carte en Direct - Oujda</span></h2>
+                <div style="font-size:0.85rem; color:var(--text-muted)">
+                    <i class="fas fa-circle" style="color:#10b981"></i> 15 Bus Actifs
+                </div>
+            </div>
+            <div id="map"></div>
+        </div>
+
+        <!-- Sidebar Fleet List -->
+        <div class="fleet-sidebar">
+            <div class="sidebar-title">
+                <span id="sidebar-header"><i class="fas fa-bus"></i> Flotte de Bus (15)</span>
+            </div>
+            <div class="bus-search-box">
+                <input type="text" id="busSearch" placeholder="Chercher ligne ou arrêt..." onkeyup="filterBusList()">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="bus-list" id="busList">
+                <!-- Dynamically Populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Widgets Section (Passages & Calculateur) -->
+    <div class="widgets-section" id="lines-section">
+        <!-- ETA Stop Tracker Widget -->
+        <div class="widget-card" id="eta-section">
+            <h3><i class="fas fa-stopwatch"></i> <span id="eta-title">Prochains Passages aux Arrêts</span></h3>
+            <div class="form-group">
+                <label for="stopSelect" id="label-stop">Sélectionner un Arrêt Majeur :</label>
+                <select id="stopSelect" onchange="calculateETA()">
+                    <option value="gare">Gare ONCF Oujda</option>
+                    <option value="ump">Université Mohammed Premier (UMP)</option>
+                    <option value="place16">Place 16 Novembre</option>
+                    <option value="lazaret">Quartier Lazaret</option>
+                    <option value="chu">CHU Mohammed VI</option>
+                    <option value="aeroport">Aéroport Oujda Angads</option>
+                </select>
+            </div>
+            <div class="eta-result" id="etaDisplay">
+                <i class="fas fa-info-circle"></i> Sélectionnez un arrêt pour voir les temps d'attente estiminteraction.
+            </div>
+        </div>
+
+        <!-- Itinerary Calculator Widget -->
+        <div class="widget-card">
+            <h3><i class="fas fa-directions"></i> <span id="calc-title">Calculateur d'Itinéraire</span></h3>
+            <div class="form-group">
+                <label id="label-dep">Départ :</label>
+                <select id="depSelect">
+                    <option>Gare ONCF</option>
+                    <option>Lazaret</option>
+                    <option>Al Qods</option>
+                    <option>Sidi Yahya</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label id="label-arr">Arrivée :</label>
+                <select id="arrSelect">
+                    <option>Université UMP</option>
+                    <option>Place 16 Novembre</option>
+                    <option>Gare Routière</option>
+                    <option>CHU Mohammed VI</option>
+                </select>
+            </div>
+            <button class="btn-action" onclick="planTrip()" id="btn-search-trip">Trouver le Bus</button>
+            <div id="tripResult" style="margin-top:10px; font-size:0.85rem;"></div>
+        </div>
+
+        <!-- Complaint / Contact Widget -->
+        <div class="widget-card">
+            <h3><i class="fas fa-headset"></i> <span id="contact-title">Service Client & Avis</span></h3>
+            <div class="form-group">
+                <input type="text" id="contactName" placeholder="Votre Nom">
+            </div>
+            <div class="form-group">
+                <textarea id="contactMsg" rows="3" placeholder="Votre réclamation ou message..."></textarea>
+            </div>
+            <button class="btn-action" onclick="sendComplaint()" id="btn-send">Envoyer</button>
+            <div id="contactFeedback" style="margin-top:8px; font-size:0.85rem; color:#059669; font-weight:bold;"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 <strong>TrajetBus Oujda</strong>. Transport Urbain Officiel de la Ville d'Oujda.</p>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Data for 15 Oujda Bus Lines with Unique Colors and Polylines
+        const busLines = [
+            { id: 1, name: "Ligne 1", route: "Gare ONCF ↔ Université UMP", color: "#EF4444", stops: [[34.6814, -1.9086], [34.6750, -1.9010], [34.6610, -1.8950], [34.6500, -1.8900]], speed: "28 km/h" },
+            { id: 2, name: "Ligne 2", route: "Lazaret ↔ Place 16 Novembre", color: "#3B82F6", stops: [[34.6950, -1.9200], [34.6880, -1.9120], [34.6814, -1.9086]], speed: "24 km/h" },
+            { id: 3, name: "Ligne 3", route: "Al Qods ↔ Gare Routière", color: "#10B981", stops: [[34.6620, -1.9150], [34.6700, -1.9100], [34.6850, -1.9050]], speed: "30 km/h" },
+            { id: 4, name: "Ligne 4", route: "Sidi Yahya ↔ Centre-Ville", color: "#F97316", stops: [[34.6480, -1.8850], [34.6600, -1.8980], [34.6814, -1.9086]], speed: "22 km/h" },
+            { id: 5, name: "Ligne 5", route: "Aéroport Angads ↔ Souk Melilla", color: "#8B5CF6", stops: [[34.7870, -1.9240], [34.7300, -1.9150], [34.6850, -1.9100]], speed: "40 km/h" },
+            { id: 6, name: "Ligne 6", route: "Route de Taza ↔ CHU Mohammed VI", color: "#06B6D4", stops: [[34.6700, -1.9400], [34.6780, -1.9200], [34.6550, -1.8800]], speed: "26 km/h" },
+            { id: 7, name: "Ligne 7", route: "Route de Berkane ↔ Place Ziri", color: "#EC4899", stops: [[34.7100, -1.9300], [34.6900, -1.9180], [34.6820, -1.9110]], speed: "25 km/h" },
+            { id: 8, name: "Ligne 8", route: "Hay El Hikma ↔ Fac de Médecine", color: "#F59E0B", stops: [[34.6580, -1.9300], [34.6620, -1.9050], [34.6520, -1.8850]], speed: "27 km/h" },
+            { id: 9, name: "Ligne 9", route: "Hay Al Massira ↔ Wilaya d'Oujda", color: "#14B8A6", stops: [[34.6900, -1.8900], [34.6850, -1.9000], [34.6800, -1.9120]], speed: "21 km/h" },
+            { id: 10, name: "Ligne 10", route: "Bd Allal Ben Abdellah ↔ Bd Derfoufi", color: "#6366F1", stops: [[34.6840, -1.9150], [34.6820, -1.9100], [34.6800, -1.9050]], speed: "18 km/h" },
+            { id: 11, name: "Ligne 11", route: "Hay Al Waha ↔ Centre Ville", color: "#4B5563", stops: [[34.6400, -1.9000], [34.6600, -1.9050], [34.6814, -1.9086]], speed: "29 km/h" },
+            { id: 12, name: "Ligne 12", route: "Zone Industrielle ↔ Marché Couvert", color: "#A16207", stops: [[34.7000, -1.8900], [34.6900, -1.9000], [34.6830, -1.9130]], speed: "23 km/h" },
+            { id: 13, name: "Ligne 13", route: "Gare ONCF ↔ CHU Mohammed VI", color: "#1E3A8A", stops: [[34.6814, -1.9086], [34.6680, -1.8950], [34.6550, -1.8800]], speed: "32 km/h" },
+            { id: 14, name: "Ligne 14", route: "Université UMP ↔ Sidi Yahya", color: "#065F46", stops: [[34.6500, -1.8900], [34.6490, -1.8870], [34.6480, -1.8850]], speed: "20 km/h" },
+            { id: 15, name: "Ligne 15", route: "Hay Al Qods ↔ Bd Mohammed V", color: "#BE185D", stops: [[34.6620, -1.9150], [34.6720, -1.9120], [34.6820, -1.9090]], speed: "25 km/h" }
+        ];
+
+        let map, markers = [], polylines = [];
+        let busPositions = [];
+
+        // Initialize Leaflet Map
+        function initMap() {
+            map = L.map('map').setView([34.6814, -1.9086], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Draw Polylines and Markers for each Bus
+            busLines.forEach((bus, index) => {
+                // 1. Draw Line Polyline with line's specific color
+                const polyline = L.polyline(bus.stops, {
+                    color: bus.color,
+                    weight: 4,
+                    opacity: 0.7
+                }).addTo(map);
+                polylines.push(polyline);
+
+                // Initial Position
+                let startPos = bus.stops[0];
+                busPositions.push({ lat: startPos[0], lng: startPos[1], targetIdx: 1 });
+
+                // 2. Custom Colored Circular Marker
+                const customIcon = L.divIcon({
+                    className: 'custom-bus-icon',
+                    html: `<div class="bus-marker-icon" style="background-color: ${bus.color}; width: 28px; height: 28px;">${bus.id}</div>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                });
+
+                const marker = L.marker([startPos[0], startPos[1]], { icon: customIcon }).addTo(map);
+                marker.bindPopup(`
+                    <strong style="color:${bus.color}">${bus.name}</strong><br>
+                    ${bus.route}<br>
+                    <strong>Vitesse:</strong> ${bus.speed}
+                `);
+                markers.push(marker);
+            });
+
+            // Populate Sidebar List
+            renderBusList();
+
+            // Animate Buses Live
+            setInterval(animateBuses, 2000);
+        }
+
+        // Render Sidebar List
+        function renderBusList() {
+            const listContainer = document.getElementById('busList');
+            listContainer.innerHTML = '';
+
+            busLines.forEach((bus) => {
+                const item = document.createElement('div');
+                item.className = 'bus-item';
+                item.onclick = () => focusBus(bus.id - 1);
+                item.innerHTML = `
+                    <div class="bus-info-left">
+                        <div class="bus-badge" style="background-color: ${bus.color}">${bus.id}</div>
+                        <div class="bus-details">
+                            <span class="bus-line-name">${bus.name}</span>
+                            <span class="bus-route-text">${bus.route}</span>
+                        </div>
+                    </div>
+                    <span class="bus-status status-moving">En route</span>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        // Animate Bus Movement
+        function animateBuses() {
+            busLines.forEach((bus, i) => {
+                let currentPos = busPositions[i];
+                let targetPos = bus.stops[currentPos.targetIdx];
+
+                // Move slightly towards target
+                currentPos.lat += (targetPos[0] - currentPos.lat) * 0.2;
+                currentPos.lng += (targetPos[1] - currentPos.lng) * 0.2;
+
+                markers[i].setLatLng([currentPos.lat, currentPos.lng]);
+
+                // Check arrival at point
+                if (Math.abs(currentPos.lat - targetPos[0]) < 0.001 && Math.abs(currentPos.lng - targetPos[1]) < 0.001) {
+                    currentPos.targetIdx = (currentPos.targetIdx + 1) % bus.stops.length;
+                }
+            });
+        }
+
+        // Focus map on selected bus
+        function focusBus(index) {
+            let pos = markers[index].getLatLng();
+            map.flyTo([pos.lat, pos.lng], 15);
+            markers[index].openPopup();
+        }
+
+        // Filter Sidebar
+        function filterBusList() {
+            let query = document.getElementById('busSearch').value.toLowerCase();
+            let items = document.querySelectorAll('.bus-item');
+            busLines.forEach((bus, idx) => {
+                if (bus.name.toLowerCase().includes(query) || bus.route.toLowerCase().includes(query)) {
+                    items[idx].style.display = 'flex';
+                } else {
+                    items[idx].style.display = 'none';
+                }
+            });
+        }
+
+        // ETA Calculator
+        function calculateETA() {
+            const display = document.getElementById('etaDisplay');
+            const randomMin1 = Math.floor(Math.random() * 5) + 2;
+            const randomMin2 = Math.floor(Math.random() * 10) + 8;
+            display.innerHTML = `
+                <i class="fas fa-bus"></i> <strong>Prochains Passages :</strong><br>
+                • Ligne 1 : dans <strong>${randomMin1} min</strong><br>
+                • Ligne 13 : dans <strong>${randomMin2} min</strong>
+            `;
+        }
+
+        // Trip Calculator
+        function planTrip() {
+            const dep = document.getElementById('depSelect').value;
+            const arr = document.getElementById('arrSelect').value;
+            const res = document.getElementById('tripResult');
+            res.innerHTML = `
+                <div style="padding:8px; background:var(--primary-bg); color:var(--primary); border-radius:6px;">
+                    <strong>Itinéraire trouvé :</strong> Prenez la <strong>Ligne 1</strong> (${dep} ➔ ${arr}).<br>
+                    ⏱ Durée estimée : 18 min | 💰 Tarif : 4 DH
+                </div>
+            `;
+        }
+
+        // Complaint Form
+        function sendComplaint() {
+            const name = document.getElementById('contactName').value;
+            const feedback = document.getElementById('contactFeedback');
+            if (name.trim() !== '') {
+                feedback.innerText = `Merci ${name}, votre message a été transmis au service client TrajetBus Oujda !`;
+                document.getElementById('contactName').value = '';
+                document.getElementById('contactMsg').value = '';
+            }
+        }
+
+        // Dark Mode Toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // Language Switcher Placeholder
+        let isArabic = false;
+        function toggleLanguage() {
+            isArabic = !isArabic;
+            document.getElementById('lang-text').innerText = isArabic ? "Français" : "العربية";
+            document.getElementById('hero-title').innerText = isArabic ? "شبكة النقل الحضري بوجدة" : "Réseau de Transport Urbain d'Oujda";
+        }
+
+        // Initialize On Load
+        window.onload = initMap;
+    </script>
+</body>
+</html>
